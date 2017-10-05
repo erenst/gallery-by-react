@@ -14,12 +14,22 @@ imageDatas = (function genImageURL(imageDatasArr) {
 	}
 	return imageDatasArr;
 })(imageDatas);
+/*
+ *get a random value between low and high
+ */
+function getRangeRandom(low, high) {
+	return Math.ceil(Math.random() * (high - low) + low);
+}
 
 var ImgFigure = React.createClass({
-
 	render: function() {
+		var styleObj = {};
+		// if pos in props, use pos
+		if (this.props.arrange.pos) {
+			styleObj = this.props.arrange.pos;
+		}
 		return (
-			<figure className="img-figure">
+			<figure className="img-figure" style={styleObj}>
 					<img src={this.props.data.imageURL} alt={this.props.data.title}/>
 					<figcaption>
 						<h2 className="img-title">{this.props.data.title}</h2>
@@ -33,7 +43,7 @@ var GalleryByReactApp = React.createClass({
 	Constant: {
 		centerPos: {
 			left: 0,
-			right: 0
+			top: 0
 		},
 		hPosRange: {
 			leftSecX: [0, 0],
@@ -48,15 +58,68 @@ var GalleryByReactApp = React.createClass({
 
 	getInitialState: function() {
 		return {
-
+			imgsArrangeArr: []
 
 		};
 	},
-	//relocate image
+	/*relocate image
+	 *@param centerIndex indicate image which loacted in the center of stage
+	 *
+	 */
 	rearrange: function(centerIndex) {
+		var imgsArrangeArr = this.state.imgsArrangeArr,
+			Constant = this.Constant,
+			centerPos = Constant.centerPos,
+			hPosRange = Constant.hPosRange,
+			vPosRange = Constant.vPosRange,
+			hPosRangeLeftSecX = hPosRange.leftSecX,
+			hPosRangeRightSecX = hPosRange.rightSecX,
+			hPosRangeY = hPosRange.y,
+			vPosRangeTopY = vPosRange.topY,
+			vPosRangeX = vPosRange.x,
+			imgsArrangeTopArr = [],
+			topImgNum = Math.floor(Math.random() * 2),
+			topImgSpliceIndex = 0,
 
+			imgsArrangeCenterArr = imgsArrangeArr.splice(centerIndex, 1);
+
+		//locate image which index is centerIndex in the center position
+		imgsArrangeCenterArr[0].pos = centerPos;
+		//get image state info which will be located in top area
+		topImgSpliceIndex = Math.ceil(Math.random() * (imgsArrangeArr.length - topImgNum));
+		imgsArrangeTopArr = imgsArrangeArr.splice(topImgSpliceIndex, topImgNum);
+		//locate image in top Area
+		imgsArrangeTopArr.forEach(function(value, index) {
+			imgsArrangeTopArr[index].pos = {
+				top: getRangeRandom(vPosRangeTopY[0], vPosRangeTopY[1]),
+				left: getRangeRandom(vPosRangeX[0], vPosRangeX[1])
+			};
+		});
+		//locate image in left or right area
+		for (var i = 0, j = imgsArrangeArr.length, k = j / 2; i < j; i++) {
+			var hPosRangeLORX = null;
+			//front half part in left side, end half part in right side
+			if (i < k) {
+				hPosRangeLORX = hPosRangeLeftSecX;
+			} else {
+				hPosRangeLORX = hPosRangeRightSecX;
+			}
+
+			imgsArrangeArr[i].pos = {
+				top: getRangeRandom(hPosRangeY[0], hPosRangeY[1]),
+				left: getRangeRandom(hPosRangeLORX[0], hPosRangeLORX[1])
+			};
+			if (imgsArrangeTopArr && imgsArrangeTopArr[0]) {
+				imgsArrangeArr.splice(topImgSpliceIndex, 0, imgsArrangeTopArr[0]);
+			}
+			imgsArrangeCenterArr.splice(centerIndex, 0, imgsArrangeCenterArr[0]);
+			this.setState({
+				imgsArrangeArr: imgsArrangeArr
+			});
 		}
-		//after image mounted, caculate position range for every image
+	},
+
+	//after image mounted, caculate position range for every image
 	componentDidMount: function() {
 		//get stage size
 		var stageDOM = React.findDOMNode(this.refs.stage),
@@ -80,15 +143,15 @@ var GalleryByReactApp = React.createClass({
 		this.Constant.hPosRange.leftSecX[1] = halfStageW - halfImgW * 3;
 		this.Constant.hPosRange.rightSecX[0] = halfStageW + halfImgW;
 		this.Constant.hPosRange.rightSecX[1] = stageW - halfImgW;
-		this.Constant.vPosRange.y[0] = -halfImgH;
-		this.Constant.vPosRange.y[1] = stageH - halfImgH;
+		this.Constant.hPosRange.y[0] = -halfImgH;
+		this.Constant.hPosRange.y[1] = stageH - halfImgH;
 		//caculate the range of images' location in top section
-		this.Constant.vPosRange.topY[0] = -halfStageH;
+		this.Constant.vPosRange.topY[0] = -halfImgH;
 		this.Constant.vPosRange.topY[1] = halfStageH - halfImgH * 3;
 		this.Constant.vPosRange.x[0] = halfStageW - imgW;
-		this.Constant.vPosRange.x[1] = halfStageH;
+		this.Constant.vPosRange.x[1] = halfStageW;
 
-		this.rearrange(0);
+		this.rearrange(2);
 	},
 
 
@@ -97,26 +160,26 @@ var GalleryByReactApp = React.createClass({
 		var imgFigures = [];
 		imageDatas.forEach(function(value, index) {
 			if (!this.state.imgsArrangeArr[index]) {
-				this.stage.imgsArrangeArr[index] = {
+				this.state.imgsArrangeArr[index] = {
 					pos: {
 						left: 0,
 						top: 0
 					}
-				}
+				};
 			}
-			imgFigures.push(<ImgFigure data={value} ref={'imgFigure' + index}/>);
+			imgFigures.push(<ImgFigure data={value} ref={'imgFigure' + index} arrange={this.state.imgsArrangeArr[index]}/>);
 		}.bind(this));
 
 
 		return (
 			<section className="stage" ref="stage">
-					<section className="img-sec">
-						{imgFigures}
-					</section>
-					<nav className="controller-nav">
+						<section className="img-sec">
+							{imgFigures}
+						</section>
+						<nav className="controller-nav">
 						{controllerUnits}
-					</nav>
-					</section>
+							</nav>
+						</section>
 		);
 	}
 });
